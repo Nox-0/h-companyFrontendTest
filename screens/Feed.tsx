@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import {StyleSheet, Text, View, ScrollView, Pressable, Button, TouchableHighlight, Alert, Modal} from 'react-native';
+
+
 
 export default class Feed extends React.Component{
 	state = {
@@ -50,124 +52,91 @@ export default class Feed extends React.Component{
 		this.getData();
 	}
 
-	formatComplete = () => {
-		const mobList = this.state.mobdata;
-		const cowList = this.state.cowdata;
-		const timeList = this.state.timedata;
-		const mergeCowMob = (cowList = [], mobList = []) => {
-			let res = [];
-			res = cowList.map(obj => {
-				const index = mobList.findIndex(el => el["id"] == obj["mobId"]);
-				const { name } = index !== 1 ? mobList[index] : {};
-				return {
-					...obj,
-					name
-				};
-			});
-			return res;
-		};
-		const mergeTimeCow = (timeList = [], cowList = []) => {
-			let res = [];
-			res = cowList.map(obj => {
-				const index = cowList.findIndex(el => el["id"] == obj["cowId"]);
-				if (cowList[index].color != null) {
-					const { earTag } = index !== 1 ? cowList[index] : {};
-					const { name } = index !== -1 ? cowList[index] : {};
-				}
-				return {
-					...obj,
-					earTag,
-					name
-				};
-			});
-			return res;
-		};
-		if (cowList.length > 0) {
-			let thingy = mergeCowMob(cowList, mobList);
-			// console.log(thingy);
-			return thingy;
-		}
-		return [];
+	setModalVisible = (visible) => {
+		this.setState({ modalVisible: visible });
 	}
 
-	newMergeAttempt = () => {
-		const mobList = this.state.mobdata;
-		const cowList = this.state.cowdata;
-		const timeList = this.state.timedata;
-		let half: { earTag: any; }[] = [];
-		let full = [];
-		if (cowList.length > 0) {
-			cowList.forEach(cow => {
-				let mobId = cow.mobId - 1;
-				let newObj = {
-					id: cow.id,
-					earTag: cow.earTag,
-					name: mobList[mobId].name
-				}
-				half.push(newObj)
-			})
+	formatName = (mobName: string) => {
+		if (mobName == "Milkers") {
+			return (<View style={styles.milker}><Text style={styles.milker}>M</Text></View>)
+		} else {
+			return (<View style={styles.sick}><Text style={styles.sick}>S</Text></View>)
 		}
-		if (timeList.length > 0 && half.length > 0) {
-			let count = 0;
-			timeList.forEach(time => {
-				let cowInd = time.cowId -1;
-				let newObj = {
-					id: count,
-					cowId: time.cowId,
-					status: time.status,
-					confirmedBy: time.confirmedBy,
-					date: time.date,
-					read: time.read,
-					name: half[cowInd].name,
-					earTag: half[cowInd].earTag
-				}
-				count ++;
-				full.push(newObj);
-			})
-		}
-		return full;
 	}
 
-	formatMob = (mob: any) => {
-		if (mob.name == 'Milkers') {
+	formatStatus = (cowStatus: string, confirmer: string, readStatus: boolean) => {
+		if (cowStatus == "unconfirmed") {
 			return (
-				<Text style={styles.milker}>M, {mob.id}, {mob.color}</Text>
+				<View>
+					<Text style={readStatus ? styles.readHead : styles.unreadHead}>Potential illness</Text>
+					<Text style={readStatus ? styles.readBody : styles.unreadBody}>Unconfirmed</Text>
+				</View>
 			)
-		} else if (mob.name == 'Sick') {
+		} else if (cowStatus == "sick") {
 			return (
-				<Text style={styles.sick}>S, {mob.id}, {mob.color}</Text>
+				<View>
+					<Text style={readStatus ? styles.read : styles.unreadHead}>Lame</Text>
+					<Text style={readStatus ? styles.read : styles.unreadBody}>Confirmed by {confirmer}</Text>
+				</View>
+			)
+		} else {
+			return (
+				<View>
+					<Text style={readStatus ? styles.read : styles.unreadHead}>Not sick</Text>
+					<Text style={readStatus ? styles.read : styles.unreadBody}>Confirmed by {confirmer}</Text>
+				</View>
 			)
 		}
 	}
 
-	formatCow = (cow: any) => {
+	formatEarTag = (earTag: string) => {
 		return (
-			<Text>{cow.id}, {cow.mobId}, {cow.earTag}</Text>
+			<View style={styles.earTag}>
+				<Text style={styles.earTag}>{earTag}</Text>
+			</View>
 		)
 	}
 
-	formatTime = (time: any) => {
-		return (
-			<Text>{time.id}, {time.cowId}, {time.status}, {time.confirmedBy}, {time.date}, {time.read}</Text>
-		)
+	dateBanner = (entry) => {
+	if (entry.id == 1 || this.state.timedata[entry.id - 2].date != entry.date) {
+			return (
+				<View style={styles.dateBanner} accessibilityRole={'summary'}>
+					<Text style={styles.dateBanner}>
+						{entry.date}
+					</Text>
+				</View>
+			)
+		}
 	}
 
-	formatHalf = (thing: any) => {
-		return (
-			<Text>{thing.id}, {thing.earTag}, {thing.name}</Text>
-		)
+	test = () => {
+		const { modalVisible } = this.state.modalVisible;
+		if (this.state.timedata.length > 0 && this.state.cowdata.length > 0 && this.state.mobdata.length > 0) {
+			let thing = this.state.timedata.map((entry) => {
+				entry.cow = this.state.cowdata.filter((cow) => cow.id == entry.cowId);
+				if (entry.cow != null && this.state.mobdata.length > 0) {
+					entry.cow[0].mob = this.state.mobdata.filter((mob) => mob.id == entry.cow[0].mobId);
+					return (
+						<View>
+							<Text>
+								{this.dateBanner(entry)}
+							</Text>
+							<Pressable onPress={() => this.setModalVisible(true)}>
+								<View style={styles.wholeThing}>
+									<View style={styles.leftThing}><Text>{this.formatName(entry.cow[0].mob[0].name)} {this.formatEarTag(entry.cow[0].earTag)}</Text></View>
+									<Text style={styles.rightThing}>{this.formatStatus(entry.status, entry.confirmedBy, entry.read)}</Text>
+								</View>
+							</Pressable>
+						</View>
+					);
+				}
+				return;
+			});
+			return thing;
+		}
 	}
 
-	formatFull = (thing: any) => {
-		return (
-			<Text>ID: {thing.id}, Ear tag: {thing.earTag}, Status: {thing.status}, Confirmed By: {thing.confirmedBy},
-				Date: {thing.date}, Read: {thing.read}, Cow ID: {thing.cowId}, Name: {thing.name}</Text>
-		)
-	}
-
-	render() {
-		const hey = this.formatComplete();
-		const full = this.newMergeAttempt();
+render() {
 		return (
 			<ScrollView style={styles.container}>
 				<Text style={styles.title}>Tab One</Text>
@@ -192,19 +161,55 @@ export default class Feed extends React.Component{
 }
 
 const styles = StyleSheet.create({
-	container: {
-		padding: 25,
-	},
-	title: {
-		fontSize: 20,
-		fontWeight: 'bold',
-	},
 	milker: {
-		backgroundColor: "#3DBA4E",
-		color: '#ffffff'
+		backgroundColor: '#3DBA4E',
+		color: '#ffffff',
+		padding: 7,
+		paddingHorizontal: 9,
+		borderRadius: 100,
 	},
 	sick: {
-		backgroundColor: "#D82833",
+		backgroundColor: '#D82833',
 		color: '#fff',
+		padding: 7,
+		paddingHorizontal: 10,
+		borderRadius: 100,
+	},
+	card: {
+		margin: 10,
+	},
+	read: {
+		color: 'black',
+	},
+	unreadHead: {
+		color: 'black',
+		fontWeight: 'bold',
+	},
+	unreadBody: {
+		color: 'red',
+		fontWeight: 'bold',
+	},
+	earTag: {
+		padding: 4,
+		fontWeight: 'bold',
+		fontSize: 20,
+	},
+	dateBanner: {
+		padding: 5,
+		backgroundColor: '#e8e8e8',
+		fontWeight: 'bold',
+		width: 1000,
+	},
+	leftThing: {
+		width: 123,
+		margin: 5,
+	},
+	rightThing: {
+		margin: 5,
+		paddingTop: 5,
+	},
+	wholeThing: {
+		flex: 1,
+		flexDirection: 'row',
 	}
 });
