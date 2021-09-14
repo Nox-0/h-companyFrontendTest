@@ -1,4 +1,4 @@
-Hello, this is Danila Bublik's Frontend Developer Test for Halter NZ
+Hello, this is Danila Bublik's Frontend Developer Test for [h-company] NZ
 
 There are probably a few ways to run this app but I only know how to do it with Expo.
 
